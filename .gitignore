@@ -1,0 +1,23 @@
+# macOS
+.DS_Store
+
+# Secrets — ne jamais commiter
+.env
+.env.*
+!.env.example
+
+# Swift Package Manager / Vapor
+.build/
+.swiftpm/
+Packages/
+*.resolved.bak
+
+# Xcode
+DerivedData/
+xcuserdata/
+*.xcuserstate
+*.xcscmblueprint
+build/
+
+# Divers
+*.log
