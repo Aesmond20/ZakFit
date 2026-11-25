@@ -4,11 +4,10 @@ import FluentMySQLDriver
 import JWT
 import Vapor
 
-/// configures your application
+/// Configure l'application
 func configure(_ app: Application) async throws {
-    // uncomment to serve files from /Public folder
-    // app.middleware.use(FileMiddleware(publicDirectory: app.directory.publicDirectory))
 
+    // MARK: - CORS
     let corsConfiguration = CORSMiddleware.Configuration(
         allowedOrigin: .all,
         allowedMethods: [.GET, .POST, .PUT, .PATCH, .DELETE, .OPTIONS],
@@ -16,6 +15,7 @@ func configure(_ app: Application) async throws {
     )
     app.middleware.use(CORSMiddleware(configuration: corsConfiguration), at: .beginning)
     
+    // MARK: - Base de données (MySQL de XAMPP)
     app.databases.use(.mysql(
         hostname: Environment.get("DATABASE_HOST") ?? "127.0.0.1",
         port: Environment.get("DATABASE_PORT").flatMap(Int.init(_:)) ?? 3306,
@@ -25,13 +25,16 @@ func configure(_ app: Application) async throws {
         tlsConfiguration: nil
     ), as: .mysql)
     
+    // MARK: - Mots de passe
     app.passwords.use(.bcrypt(cost: 12))
     
+    // MARK: - JWT
+    // Le secret vient du .env, jamais du code.
     guard let jwtSecret = Environment.get("JWT_SECRET") else {
-            fatalError("JWT_SECRET manquant dans le fichier .env")
-        }
-        await app.jwt.keys.add(hmac: HMACKey(from: jwtSecret), digestAlgorithm: .sha256)
-
-    // register routes
+        fatalError("JWT_SECRET manquant dans le fichier .env")
+    }
+    await app.jwt.keys.add(hmac: HMACKey(from: jwtSecret), digestAlgorithm: .sha256)
+    
+    // MARK: - Routes
     try routes(app)
 }
