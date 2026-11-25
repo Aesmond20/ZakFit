@@ -60,6 +60,7 @@ final class User: Model, @unchecked Sendable {
     @Timestamp(key: "updated_at", on: .update)
     var updatedAt: Date?
     
+    // MARK: - Constructeurs
     init() { }
     
     /// Création à l'inscription
@@ -71,5 +72,22 @@ final class User: Model, @unchecked Sendable {
         self.passwordHash = passwordHash
         self.role = .user
         self.status = .active
+    }
+}
+
+// MARK: - Conversion en DTO
+extension User {
+    func toDTO() throws -> UserDTO {
+        UserDTO(
+            id: try requireID(),
+            firstName: firstName,
+            lastName: lastName,
+            email: email,
+            birthDate: birthDate,
+            sex: sex,
+            heightCm: heightCm,
+            weightKg: weightKg,
+            healhGoal: healthGoal
+        )
     }
 }
