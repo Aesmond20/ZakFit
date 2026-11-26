@@ -50,6 +50,7 @@ struct AuthController: RouteCollection {
         // on ne révèle pas quels emails ont un compte.
         guard let user = try await User.query(on: req.db)
             .filter(\.$email == dto.email.lowercased())
+            .with(\.$dietaryPreferences)
             .first()
                 else {
             throw Abort(.unauthorized, reason: "Invalid email or password")

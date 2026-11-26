@@ -17,5 +17,6 @@ struct UserDTO: Content {
     let sex: Sex?
     let heightCm: Int?
     let weightKg: Double?
-    let healhGoal: HealthGoal?
+    let healthGoal: HealthGoal?
+    let dietaryPreferences: [String]
 }

@@ -46,6 +46,9 @@ final class User: Model, @unchecked Sendable {
     @OptionalEnum(key: "health_goal")
     var healthGoal: HealthGoal?
     
+    @Siblings(through: UserDietaryPreference.self, from: \.$user, to: \.$dietaryPreference)
+    var dietaryPreferences: [DietaryPreference]
+    
     // MARK: - Compte (V2 : administration)
     @Enum(key: "role")
     var role: UserRole
@@ -87,7 +90,8 @@ extension User {
             sex: sex,
             heightCm: heightCm,
             weightKg: weightKg,
-            healhGoal: healthGoal
+            healthGoal: healthGoal,
+            dietaryPreferences: $dietaryPreferences.value?.map(\.name).sorted() ?? []
         )
     }
 }

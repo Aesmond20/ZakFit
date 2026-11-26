@@ -16,22 +16,6 @@ struct AuthControllerTests {
     
     // MARK: - Inscription
     
-    /// Démarre l'application de test, lance le test, puis l'arrête.
-    private func withApp(_ test: (Application) async throws -> ()) async throws {
-        setenv("DATABASE_NAME", "zakfit_test", 1)
-        setenv("JWT_SECRET", "zakfit-test-secret-not-for-production", 1)
-        
-        let app = try await Application.make(.testing)
-        do {
-            try await configure(app)
-            try await test(app)
-        } catch {
-            try await app.asyncShutdown()
-            throw error
-        }
-        try await app.asyncShutdown()
-    }
-    
     /// Inscription valide.
     private func makeRegisterBody(
         email: String = "test.\(UUID().uuidString.prefix(8))@email.fr",
@@ -57,7 +41,7 @@ struct AuthControllerTests {
     
     @Test("201 : crée le compte et renvoie un token, sans mot de passe")
     func registerCreatesUser() async throws {
-        try await withApp { app in
+        try await withTestApp { app in
             let body = makeRegisterBody()
             
             try await app.testing().test(.POST, "auth/register", beforeRequest: { req in
@@ -82,7 +66,7 @@ struct AuthControllerTests {
     
     @Test("409 : email déjà utilisé, même avec une casse différente")
     func registerRejectsSameEmail() async throws {
-        try await withApp { app in
+        try await withTestApp { app in
             let identifier = UUID().uuidString.prefix(8).lowercased()
             let body = makeRegisterBody(email: "test.\(identifier)@email.fr")
             try await app.testing().test(.POST, "auth/register", beforeRequest: { req in
@@ -103,7 +87,7 @@ struct AuthControllerTests {
     
     @Test("400 : email invalide")
     func registerRejectsInvalidEmail() async throws {
-        try await withApp { app in
+        try await withTestApp { app in
             let body = makeRegisterBody(email: "pas-un-email")
             try await app.testing().test(.POST, "auth/register", beforeRequest: { req in
                 try req.content.encode(body)
@@ -115,7 +99,7 @@ struct AuthControllerTests {
     
     @Test("400 : mot de passe de moins de 8 caractères")
     func registerRejectsShortPassword() async throws {
-        try await withApp { app in
+        try await withTestApp { app in
             let body = makeRegisterBody(password: "court", confirmPassword: "court")
             try await app.testing().test(.POST, "auth/register", beforeRequest: { req in
                 try req.content.encode(body)
@@ -127,7 +111,7 @@ struct AuthControllerTests {
     
     @Test("400 : la confirmation ne correspond pas au mot de passe")
     func registerRejectsPasswordMismatch() async throws {
-        try await withApp { app in
+        try await withTestApp { app in
             let body = makeRegisterBody(confirmPassword: "ZakFit2027!")
             try await app.testing().test(.POST, "auth/register", beforeRequest: { req in
                 try req.content.encode(body)
@@ -139,7 +123,7 @@ struct AuthControllerTests {
     
     @Test("400 : prénom vide")
     func registerRejectsEmptyFirstName() async throws {
-        try await withApp { app in
+        try await withTestApp { app in
             let body = makeRegisterBody(firstName: "")
             try await app.testing().test(.POST, "auth/register", beforeRequest: { req in
                 try req.content.encode(body)
@@ -157,7 +141,7 @@ struct AuthControllerTests {
 
     @Test("200 : connexion réussie, renvoie un token et l'utilisateur")
     func loginReturnsToken() async throws {
-        try await withApp { app in
+        try await withTestApp { app in
             let body = LoginDTO(email: demoEmail, password: demoPassword)
             try await app.testing().test(.POST, "auth/login", beforeRequest: { req in
                 try req.content.encode(body)
@@ -172,7 +156,7 @@ struct AuthControllerTests {
 
     @Test("401 : mauvais mot de passe")
     func loginRejectsWrongPassword() async throws {
-        try await withApp { app in
+        try await withTestApp { app in
             let body = LoginDTO(email: demoEmail, password: "mauvais-mdp")
             try await app.testing().test(.POST, "auth/login", beforeRequest: { req in
                 try req.content.encode(body)
@@ -185,7 +169,7 @@ struct AuthControllerTests {
 
     @Test("401 : email inconnu, avec le même message que le mauvais mot de passe")
     func loginRejectsUnknownEmail() async throws {
-        try await withApp { app in
+        try await withTestApp { app in
             let body = LoginDTO(email: "inconnu@email.fr", password: demoPassword)
             try await app.testing().test(.POST, "auth/login", beforeRequest: { req in
                 try req.content.encode(body)
@@ -198,7 +182,7 @@ struct AuthControllerTests {
 
     @Test("400 : email au mauvais format")
     func loginRejectsInvalidEmail() async throws {
-        try await withApp { app in
+        try await withTestApp { app in
             let body = LoginDTO(email: "pas-un-email", password: demoPassword)
             try await app.testing().test(.POST, "auth/login", beforeRequest: { req in
                 try req.content.encode(body)
