@@ -28,4 +28,14 @@ struct UserPayload: JWTPayload, Authenticatable {
     func verify(using algorithm: some JWTAlgorithm) async throws {
         try expiration.verifyNotExpired()
     }
+    
+    /// Charge l'utilisateur du token.
+    func findUser(on database: any Database) async throws -> User {
+        guard let userID = UUID(uuidString: subject.value),
+              let user = try await User.find(userID, on: database)
+        else {
+            throw Abort(.unauthorized, reason: "Authentication required")
+        }
+        return user
+    }
 }

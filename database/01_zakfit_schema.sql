@@ -78,10 +78,13 @@ CREATE TABLE users (
 );
 
 -- Création de la table user_dietary_preferences (association n-n)
+-- id technique : modèle pivot Fluent (@ID + @Siblings) ; le couple reste unique
 CREATE TABLE user_dietary_preferences (
+    id BINARY(16) NOT NULL,
     user_id BINARY(16) NOT NULL,
     dietary_preference_id BINARY(16) NOT NULL,
-    PRIMARY KEY (user_id, dietary_preference_id),
+    PRIMARY KEY (id),
+    CONSTRAINT uq_user_dietary_preferences_user_id_dietary_preference_id UNIQUE (user_id, dietary_preference_id),
     CONSTRAINT fk_user_dietary_preferences_user_id FOREIGN KEY (user_id)
         REFERENCES users (id) ON DELETE CASCADE,
     CONSTRAINT fk_user_dietary_preferences_dietary_preference_id FOREIGN KEY (dietary_preference_id)
@@ -133,12 +136,15 @@ CREATE TABLE meals (
 );
 
 -- Création de la table meal_foods (association n-n porteuse de la quantité)
+-- id technique : modèle pivot Fluent (@ID + @Siblings) ; un aliment une seule fois par repas
 CREATE TABLE meal_foods (
+    id BINARY(16) NOT NULL,
     meal_id BINARY(16) NOT NULL,
     food_id BINARY(16) NOT NULL,
     quantity DECIMAL(6,1) NOT NULL,
     quantity_unit ENUM('gram', 'unit') NOT NULL DEFAULT 'gram',
-    PRIMARY KEY (meal_id, food_id),
+    PRIMARY KEY (id),
+    CONSTRAINT uq_meal_foods_meal_id_food_id UNIQUE (meal_id, food_id),
     CONSTRAINT ck_meal_foods_quantity CHECK (quantity > 0),
     CONSTRAINT fk_meal_foods_meal_id FOREIGN KEY (meal_id)
         REFERENCES meals (id) ON DELETE CASCADE,
@@ -203,10 +209,13 @@ CREATE TABLE goals (
 );
 
 -- Création de la table goal_activity_categories (activités privilégiées, n-n)
+-- id technique : modèle pivot Fluent (@ID + @Siblings) ; le couple reste unique
 CREATE TABLE goal_activity_categories (
+    id BINARY(16) NOT NULL,
     goal_id BINARY(16) NOT NULL,
     activity_category_id BINARY(16) NOT NULL,
-    PRIMARY KEY (goal_id, activity_category_id),
+    PRIMARY KEY (id),
+    CONSTRAINT uq_goal_activity_categories_goal_id_activity_category_id UNIQUE (goal_id, activity_category_id),
     CONSTRAINT fk_goal_activity_categories_goal_id FOREIGN KEY (goal_id)
         REFERENCES goals (id) ON DELETE CASCADE,
     CONSTRAINT fk_goal_activity_categories_activity_category_id FOREIGN KEY (activity_category_id)
