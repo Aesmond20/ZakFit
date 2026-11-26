@@ -11,8 +11,10 @@ import Testing
 import VaporTesting
 
 /// Tests de POST /auth/register.
-@Suite("Auth — inscription", .serialized)
+@Suite("Auth — inscription et connexion", .serialized)
 struct AuthControllerTests {
+    
+    // MARK: - Inscription
     
     /// Démarre l'application de test, lance le test, puis l'arrête.
     private func withApp(_ test: (Application) async throws -> ()) async throws {
@@ -30,7 +32,7 @@ struct AuthControllerTests {
         try await app.asyncShutdown()
     }
     
-    /// Corps d'inscription valide.
+    /// Inscription valide.
     private func makeRegisterBody(
         email: String = "test.\(UUID().uuidString.prefix(8))@email.fr",
         firstName: String = "Camille",
@@ -140,6 +142,65 @@ struct AuthControllerTests {
         try await withApp { app in
             let body = makeRegisterBody(firstName: "")
             try await app.testing().test(.POST, "auth/register", beforeRequest: { req in
+                try req.content.encode(body)
+            }, afterResponse: { res async in
+                #expect(res.status == .badRequest)
+            })
+        }
+    }
+
+    // MARK: - Connexion
+
+    /// Compte des données fictives
+    private let demoEmail = "ambre@email.fr"
+    private let demoPassword = "ZakFit2026!"
+
+    @Test("200 : connexion réussie, renvoie un token et l'utilisateur")
+    func loginReturnsToken() async throws {
+        try await withApp { app in
+            let body = LoginDTO(email: demoEmail, password: demoPassword)
+            try await app.testing().test(.POST, "auth/login", beforeRequest: { req in
+                try req.content.encode(body)
+            }, afterResponse: { res async throws in
+                #expect(res.status == .ok)
+                let response = try res.content.decode(AuthResponseDTO.self)
+                #expect(!response.token.isEmpty)
+                #expect(response.user.email == demoEmail)
+            })
+        }
+    }
+
+    @Test("401 : mauvais mot de passe")
+    func loginRejectsWrongPassword() async throws {
+        try await withApp { app in
+            let body = LoginDTO(email: demoEmail, password: "mauvais-mdp")
+            try await app.testing().test(.POST, "auth/login", beforeRequest: { req in
+                try req.content.encode(body)
+            }, afterResponse: { res async in
+                #expect(res.status == .unauthorized)
+                #expect(res.body.string.contains("Invalid email or password"))
+            })
+        }
+    }
+
+    @Test("401 : email inconnu, avec le même message que le mauvais mot de passe")
+    func loginRejectsUnknownEmail() async throws {
+        try await withApp { app in
+            let body = LoginDTO(email: "inconnu@email.fr", password: demoPassword)
+            try await app.testing().test(.POST, "auth/login", beforeRequest: { req in
+                try req.content.encode(body)
+            }, afterResponse: { res async in
+                #expect(res.status == .unauthorized)
+                #expect(res.body.string.contains("Invalid email or password"))
+            })
+        }
+    }
+
+    @Test("400 : email au mauvais format")
+    func loginRejectsInvalidEmail() async throws {
+        try await withApp { app in
+            let body = LoginDTO(email: "pas-un-email", password: demoPassword)
+            try await app.testing().test(.POST, "auth/login", beforeRequest: { req in
                 try req.content.encode(body)
             }, afterResponse: { res async in
                 #expect(res.status == .badRequest)

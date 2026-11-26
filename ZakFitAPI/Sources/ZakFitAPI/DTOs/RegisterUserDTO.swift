@@ -7,7 +7,7 @@
 
 import Vapor
 
-/// Corps de POST /auth/register.
+/// POST /auth/register.
 struct RegisterUserDTO: Content, Validatable {
     let firstName: String
     let lastName: String
