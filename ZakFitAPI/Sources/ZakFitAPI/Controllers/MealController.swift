@@ -18,6 +18,8 @@ struct MealController: RouteCollection {
         
         meals.group(":mealID") { meal in
             meal.get(use: find)
+            meal.put(use: update)
+            meal.delete(use: delete)
         }
     }
     
@@ -73,6 +75,49 @@ struct MealController: RouteCollection {
         
         let created = try await loadMeal(id: meal.requireID(), userID: userID, on: req.db)
         return try await created.toDTO().encodeResponse(status: .created, for: req)
+    }
+    
+    /// PUT /meals/:mealID
+    @Sendable
+    func update(req: Request) async throws -> MealDTO {
+        try UpdateMealDTO.validate(content: req)
+        let dto = try req.content.decode(UpdateMealDTO.self)
+        try dto.ensureFoodsAreValid()
+        
+        let user = try await req.auth.require(UserPayload.self).findUser(on: req.db)
+        let userID = try user.requireID()
+        let meal = try await loadMeal(id: mealID(from: req), userID: userID, on: req.db)
+        try await checkFoods(dto.foods, userID: userID, on: req.db)
+        
+        // Pas « let mealID » ici : le nom masquerait la fonction mealID(from:) dans toute la fonction
+        let id = try meal.requireID()
+        meal.type = dto.type
+        meal.eatenAt = dto.eatenAt
+        
+        // Repas et lignes remplacés ensemble, ou pas du tout
+        try await req.db.transaction { db in
+            try await meal.save(on: db)
+            try await MealFood.query(on: db)
+                .filter(\.$meal.$id == id)
+                .delete()
+            let mealFoods = dto.foods.map {
+                MealFood(mealID: id, foodID: $0.foodID, quantity: $0.quantity, quantityUnit: $0.quantityUnit)
+            }
+            try await mealFoods.create(on: db)
+        }
+        
+        let updated = try await loadMeal(id: id, userID: userID, on: req.db)
+        return try updated.toDTO()
+    }
+    
+    /// DELETE /meals/:mealID : supprime le repas (ses lignes partent avec, ON DELETE CASCADE)
+    @Sendable
+    func delete(req: Request) async throws -> HTTPStatus {
+        let user = try await req.auth.require(UserPayload.self).findUser(on: req.db)
+        let meal = try await loadMeal(id: mealID(from: req), userID: user.requireID(), on: req.db)
+        
+        try await meal.delete(on: req.db)
+        return .noContent
     }
     
     private func mealID(from req: Request) throws -> UUID {

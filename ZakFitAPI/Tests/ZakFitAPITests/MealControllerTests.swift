@@ -224,4 +224,128 @@ struct MealControllerTests {
             })
         }
     }
+    
+    // MARK: - PUT /meals/:mealID
+    private func dinnerBody() throws -> UpdateMealDTO {
+        UpdateMealDTO(type: .dinner, eatenAt: try date("2026-11-27T19:00:00Z"), foods: [
+            MealFoodInputDTO(foodID: appleID, quantity: 2, quantityUnit: .unit)
+        ])
+    }
+    
+    @Test("200 : remplace le type, l'heure et tous les aliments")
+    func updateReplacesMeal() async throws {
+        try await withTestApp { app in
+            let (token, email) = try await registerTestUser(app: app)
+            let meal = try await createMeal(try lunchBody(), token: token, app: app)
+            
+            try await app.testing().test(.PUT, "meals/\(meal.id)", beforeRequest: { req in
+                req.headers.bearerAuthorization = BearerAuthorization(token: token)
+                try req.content.encode(try dinnerBody())
+            }, afterResponse: { res async throws in
+                #expect(res.status == .ok)
+                let updated = try res.content.decode(MealDTO.self)
+                #expect(updated.id == meal.id)
+                #expect(updated.type == .dinner)
+                #expect(updated.foods.count == 1)
+                #expect(updated.foods.first?.grams == 300)
+                #expect(updated.totals.kcal == 156)
+            })
+            
+            // Les anciennes lignes ont bien disparu : un seul repas, 156 kcal sur la journée
+            try await app.testing().test(.GET, "meals?date=2026-11-27", beforeRequest: { req in
+                req.headers.bearerAuthorization = BearerAuthorization(token: token)
+            }, afterResponse: { res async throws in
+                let day = try res.content.decode(DayMealsDTO.self)
+                #expect(day.meals.count == 1)
+                #expect(day.totals.kcal == 156)
+            })
+            
+            try await deleteTestUser(email: email, on: app.db)
+        }
+    }
+    
+    @Test("404 : impossible de modifier le repas d'un autre utilisateur")
+    func updateIsLimitedToOwner() async throws {
+        try await withTestApp { app in
+            let (token, email) = try await registerTestUser(app: app)
+            let meal = try await createMeal(try lunchBody(), token: token, app: app)
+            
+            let hugoToken = try await loginToken(email: "hugo.bernard@email.fr", app: app)
+            try await app.testing().test(.PUT, "meals/\(meal.id)", beforeRequest: { req in
+                req.headers.bearerAuthorization = BearerAuthorization(token: hugoToken)
+                try req.content.encode(try dinnerBody())
+            }, afterResponse: { res async in
+                #expect(res.status == .notFound)
+            })
+            
+            // Le repas du propriétaire n'a pas changé
+            try await app.testing().test(.GET, "meals/\(meal.id)", beforeRequest: { req in
+                req.headers.bearerAuthorization = BearerAuthorization(token: token)
+            }, afterResponse: { res async throws in
+                let found = try res.content.decode(MealDTO.self)
+                #expect(found.type == .lunch)
+                #expect(found.totals.kcal == 682)
+            })
+            
+            try await deleteTestUser(email: email, on: app.db)
+        }
+    }
+    
+    // MARK: - DELETE /meals/:mealID
+    
+    @Test("204 puis 404 : le repas supprimé n'existe plus")
+    func deleteRemovesMeal() async throws {
+        try await withTestApp { app in
+            let (token, email) = try await registerTestUser(app: app)
+            let meal = try await createMeal(try lunchBody(), token: token, app: app)
+            
+            try await app.testing().test(.DELETE, "meals/\(meal.id)", beforeRequest: { req in
+                req.headers.bearerAuthorization = BearerAuthorization(token: token)
+            }, afterResponse: { res async in
+                #expect(res.status == .noContent)
+            })
+            
+            try await app.testing().test(.GET, "meals/\(meal.id)", beforeRequest: { req in
+                req.headers.bearerAuthorization = BearerAuthorization(token: token)
+            }, afterResponse: { res async in
+                #expect(res.status == .notFound)
+            })
+            
+            try await deleteTestUser(email: email, on: app.db)
+        }
+    }
+    
+    @Test("404 : impossible de supprimer le repas d'un autre utilisateur")
+    func deleteIsLimitedToOwner() async throws {
+        try await withTestApp { app in
+            let (token, email) = try await registerTestUser(app: app)
+            let meal = try await createMeal(try lunchBody(), token: token, app: app)
+            
+            let hugoToken = try await loginToken(email: "hugo.bernard@email.fr", app: app)
+            try await app.testing().test(.DELETE, "meals/\(meal.id)", beforeRequest: { req in
+                req.headers.bearerAuthorization = BearerAuthorization(token: hugoToken)
+            }, afterResponse: { res async in
+                #expect(res.status == .notFound)
+            })
+            
+            // Le repas existe toujours pour son propriétaire
+            try await app.testing().test(.GET, "meals/\(meal.id)", beforeRequest: { req in
+                req.headers.bearerAuthorization = BearerAuthorization(token: token)
+            }, afterResponse: { res async in
+                #expect(res.status == .ok)
+            })
+            
+            try await deleteTestUser(email: email, on: app.db)
+        }
+    }
+    
+    @Test("401 : suppression sans token")
+    func deleteRejectsMissingToken() async throws {
+        try await withTestApp { app in
+            try await app.testing().test(.DELETE, "meals/11111111-1111-1111-1111-111111111111", beforeRequest: { _ in
+            }, afterResponse: { res async in
+                #expect(res.status == .unauthorized)
+            })
+        }
+    }
 }
