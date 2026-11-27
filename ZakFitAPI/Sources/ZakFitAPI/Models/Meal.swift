@@ -42,3 +42,24 @@ final class Meal: Model, @unchecked Sendable {
         self.$user.id = userID
     }
 }
+
+// MARK: - Calculs et conversion
+extension Meal {
+    /// Totaux exacts du repas
+    var nutrition: NutritionDTO {
+        mealFoods.reduce(.zero) { $0 + $1.nutrition }
+    }
+    
+    func toDTO() throws -> MealDTO {
+        let sortedFoods = mealFoods.sorted {
+            $0.food.name.localizedStandardCompare($1.food.name) == .orderedAscending
+        }
+        return MealDTO(
+            id: try requireID(),
+            type: type,
+            eatenAt: eatenAt,
+            foods: try sortedFoods.map { try $0.toDTO() },
+            totals: nutrition.rounded()
+        )
+    }
+}

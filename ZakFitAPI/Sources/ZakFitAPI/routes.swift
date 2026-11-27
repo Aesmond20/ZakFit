@@ -13,4 +13,5 @@ func routes(_ app: Application) throws {
     )
     try protected.register(collection: UserController())
     try protected.register(collection: FoodController())
+    try protected.register(collection: MealController())
 }

@@ -8,7 +8,7 @@
 import Fluent
 import Vapor
 
-/// Routes des aliments : base commune + aliments personnalisés de l'utilisateur connecté
+/// Routes des aliments de l'utilisateur connecté
 struct FoodController: RouteCollection {
     func boot(routes: any RoutesBuilder) throws {
         let foods = routes.grouped("foods")
@@ -26,10 +26,7 @@ struct FoodController: RouteCollection {
             .trimmingCharacters(in: .whitespacesAndNewlines)
         
         let query = Food.query(on: req.db)
-            .group(.or) { group in
-                group.filter(\.$user.$id == nil)
-                    .filter(\.$user.$id == userID)
-            }
+            .visible(to: userID)
         
         if !search.isEmpty {
             query.filter(\.$name ~~ search)

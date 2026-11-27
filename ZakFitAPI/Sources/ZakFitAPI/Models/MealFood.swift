@@ -37,3 +37,35 @@ final class MealFood: Model, @unchecked Sendable {
         self.quantityUnit = quantityUnit
     }
 }
+
+// MARK: - Calculs
+extension MealFood {
+    /// Valeurs nutritionnelles exactes de la ligne.
+    var grams: Double {
+        switch quantityUnit {
+        case .gram: quantity
+        case .unit: quantity * (food.portionWeightG ?? 0)
+        }
+    }
+    
+    var nutrition: NutritionDTO {
+        NutritionDTO(
+            kcal: food.kcalPer100g * grams / 100,
+            protein: food.proteinPer100g * grams / 100,
+            carbs: food.carbsPer100g * grams / 100,
+            fat: food.fatPer100g * grams / 100
+        )
+    }
+    
+    func toDTO() throws -> MealFoodDTO {
+        MealFoodDTO(
+            id: try requireID(),
+            foodID: try food.requireID(),
+            name: food.name,
+            quantity: quantity,
+            quantityUnit: quantityUnit,
+            grams: grams,
+            nutrition: nutrition.rounded()
+        )
+    }
+}

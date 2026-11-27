@@ -73,3 +73,13 @@ extension Food {
         )
     }
 }
+
+// MARK: - Aliments visibles par un utilisateur
+extension QueryBuilder where Model == Food {
+    func visible(to userID: UUID) -> QueryBuilder<Food> {
+        group(.or) { group in
+            group.filter(\.$user.$id == nil)
+                .filter(\.$user.$id == userID)
+        }
+    }
+}
