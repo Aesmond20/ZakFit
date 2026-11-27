@@ -57,3 +57,19 @@ final class Food: Model, @unchecked Sendable {
         self.$user.id = userID
     }
 }
+
+// MARK: - Conversion en DTO
+extension Food {
+    func toDTO() throws -> FoodDTO {
+        FoodDTO(
+            id: try requireID(),
+            name: name,
+            kcalPer100g: kcalPer100g,
+            proteinPer100g: proteinPer100g,
+            carbsPer100g: carbsPer100g,
+            fatPer100g: fatPer100g,
+            portionWeightG: portionWeightG,
+            isCustom: $user.id != nil
+        )
+    }
+}

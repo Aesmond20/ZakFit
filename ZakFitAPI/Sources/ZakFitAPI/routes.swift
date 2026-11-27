@@ -12,4 +12,5 @@ func routes(_ app: Application) throws {
         UserPayload.guardMiddleware(throwing: Abort(.unauthorized, reason: "Authentication required"))
     )
     try protected.register(collection: UserController())
+    try protected.register(collection: FoodController())
 }
